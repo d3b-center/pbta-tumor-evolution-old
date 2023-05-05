@@ -1,7 +1,7 @@
 ---
-title: "Longitudinal project - PBTA Cohort - Copy data file from: /Users/chronia/CHOP/projects/OpenPedCan/OpenPedCan-analysis/data/v12/histologies.csv May 1st, 2023"
-author: 'User ID: `r Sys.getenv("USER")`'
-date: "`r Sys.Date()`"
+title: "pbta-tumor-evolution project - PBTA Cohort - Copy data file from: ./OpenPedCan-analysis/data/v12/histologies.tsv May 1st, 2023"
+author: 'User ID: chronia'
+date: "2023-05-05"
 output:
   html_document:
     fig_height: 7
@@ -10,14 +10,16 @@ output:
     toc: yes
     df_print: paged
 params:
-  out_path: "/Users/chronia/CHOP/projects/Longitudinal/Analysis/data/plots/"
-  data_path: "/Users/chronia/CHOP/projects/Longitudinal/Analysis/data/data_raw/histologies copy.csv" # path to dir with v12
-  data_path_cols: "/Users/chronia/CHOP/projects/Longitudinal/Analysis/data/data_raw/PBTA-germline-histology-groups - plot_mapping.csv"
+  out_path: "/Users/chronia/CHOP/projects/pbta-tumor-evolution/analysis/01_sample_distribution_analysis/"
+  out_path_plots: "/Users/chronia/CHOP/projects/pbta-tumor-evolution/analysis/01_sample_distribution_analysis/plots/"
+  out_path_results: "/Users/chronia/CHOP/projects/pbta-tumor-evolution/analysis/01_sample_distribution_analysis/results/"
+  data_path: "/Users/chronia/CHOP/projects/pbta-tumor-evolution/analysis/01_sample_distribution_analysis/input/histologies.tsv" # path to dir with v12
+  data_path_cols: "/Users/chronia/CHOP/projects/pbta-tumor-evolution/analysis/01_sample_distribution_analysis/input/PBTA-germline-histology-groups-plot_mapping.csv"
   sample_name: "PBTA"
   subsample: TRUE
 ---
 
-Longitudinal Project For PBTA Cohort
+BTA-tumor-evolution Project For PBTA Cohort
 
 In this notebook, we will explore how many histologies, how many samples per histology have matched DNA/RNA, how many have 2, 3, 4, samples for the PBTA Cohort, what patients and diagnoses have how many longitudinal samples and are they all paired RNA/DNA or do we have gaps and provide a summary and a table of each set of samples by patient.
 
@@ -52,8 +54,8 @@ library(flextable)
 knitr::opts_chunk$set(echo = TRUE, 
                       warning = FALSE, 
                       message = FALSE, 
-                      fig.path = file.path(out_path),
-                       dev = c("png", "pdf"))
+                      fig.path = file.path(out_path_plots),
+                      dev = c("png"))
 
 # enable parallelization
 #plan("multiprocess", workers = 4) # 10 cpus
@@ -61,8 +63,7 @@ plan("multisession", workers = 4) # 10 cpus
 options(future.globals.maxSize = 59600 * 1024^3) # for 64 Gb RAM, 119200 * 1024^3 for 128GB
 
 # set out_path and create dir 
-out_path <- paste0(out_path, "Plots-", sample_name, "/")
-if (!dir.exists(out_path)) {dir.create(out_path)}
+out_path <- if (!dir.exists(out_path)) {dir.create(out_path)}
 
 # shuffle function:
 shuf <- function(df){
@@ -73,7 +74,7 @@ shuf <- function(df){
 
 ## Load data
 ```{r }
-v12 <- read.csv(data_path, stringsAsFactor=FALSE)
+v12 <- readr::read_tsv(data_path)
 # dim(data)
 data_path_cols <- read.csv(data_path_cols, stringsAsFactor=FALSE) # Load plotting colors
 merge <- merge(v12,data_path_cols,by=c('cancer_group','broad_histology'),all.x=T) #to merge tables
@@ -113,7 +114,7 @@ data %>% count(tumor_descriptor)
 # df %>% count(tumor_descriptor)
 
 # Save data after filter 
-write.csv(data, paste0(out_path, "data_by_cohort_", "PBTA", "_filter.csv"))
+write.csv(data, paste0(out_path_results, "data_by_cohort_", "PBTA", "_filter.csv"))
 
 # Replicate tumor_descriptor column and rename to tumor_descriptor_sum. This will summarize some longitudinal info.
 # data %>% count(tumor_descriptor)
@@ -127,7 +128,7 @@ data <- data %>% filter(tumor_descriptor_sum %in% c("Diagnosis", "Progressive", 
 data %>% count(tumor_descriptor_sum)
 
 # Save data after filter 
-write.csv(data, paste0(out_path, "data_by_cohort_", "PBTA", "_filter_logitudinal.csv"))
+write.csv(data, paste0(out_path_results, "data_by_cohort_", "PBTA", "_filter_logitudinal.csv"))
 
 data %>% count(cancer_group)
 data %>% count(tumor_descriptor)
@@ -142,7 +143,7 @@ count1 <- data %>%
                  pathology_diagnosis, cancer_group, broad_histology) %>% 
           dplyr::count(cancer_group) 
 
-write.csv(count1, paste0(out_path, "data_by_cohort_", "PBTA", "_filter_logitudinal_count.csv"))
+write.csv(count1, paste0(out_path_results, "data_by_cohort_", "PBTA", "_filter_logitudinal_count.csv"))
 
 ```
 
@@ -161,7 +162,7 @@ p <- ggplot(count1, aes(x=cancer_group, fill=experimental_strategy))+
         guides(color=guide_legend(override.aes=list(size=3))) +
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
         print(p)
-ggsave(paste0("Barplot_cancer_group_experimental_strategy_", "PBTA", ".pdf"), plot=p, path=out_path, device="pdf", height=7, width=10)
+ggsave(paste0("Barplot_cancer_group_experimental_strategy_", "PBTA", ".pdf"), plot=p, path=out_path_plots, device="pdf", height=7, width=10)
 
 ```
 
@@ -180,7 +181,7 @@ p <- ggplot(count, aes(x=cancer_group, fill=experimental_strategy))+
         guides(color=guide_legend(override.aes=list(size=3))) +
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
         print(p)
-ggsave(paste0("Barplot_cancer_group_experimental_strategy_matched_DNA-RNA_", "PBTA", ".pdf"), plot=p, path=out_path, device="pdf", height=7, width=10)
+ggsave(paste0("Barplot_cancer_group_experimental_strategy_matched_DNA-RNA_", "PBTA", ".pdf"), plot=p, path=out_path_plots, device="pdf", height=7, width=10)
 ```
 
 ## By cancer_group - all disease stages
@@ -198,7 +199,7 @@ p <- ggplot(count, aes(x=cancer_group, fill=tumor_descriptor_sum))+
         guides(color=guide_legend(override.aes=list(size=3))) +
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
         print(p)
-ggsave(paste0("Barplot_cancer_group_tumor_descriptor_sum_matched_DNA-RNA_", "PBTA", ".pdf"), plot=p, path=out_path, device="pdf", height=7, width=10)
+ggsave(paste0("Barplot_cancer_group_tumor_descriptor_sum_matched_DNA-RNA_", "PBTA", ".pdf"), plot=p, path=out_path_plots, device="pdf", height=7, width=10)
 
 ```
 
