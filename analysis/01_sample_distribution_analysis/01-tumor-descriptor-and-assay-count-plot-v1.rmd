@@ -19,14 +19,23 @@ params:
   subsample: TRUE
 ---
 
-BTA-tumor-evolution Project For PBTA Cohort
+#### Tumor evolution project 
 
-In this notebook, we will explore how many histologies, how many samples per histology have matched DNA/RNA, how many have 2, 3, 4, samples for the PBTA Cohort, what patients and diagnoses have how many longitudinal samples and are they all paired RNA/DNA or do we have gaps and provide a summary and a table of each set of samples by patient.
+# aim
+This is an exploratory analysis of longitudinal data in the PBTA cohort.
+We are investigating the number of histologies (cancer_type column): (1) per assay (experimental_strategy) and (2) pairs of genomic and transcriptomic assays.
+We are also looking at the number of patient samples available per histology with paired genomic and transcriptomic assays for (1) each time point (disease_stage) and (2) when Diagnosis is present and paired with another point in time.
 
-Note the colors in the plots do not match the ones of the PBTA cohort yet. ---TO DO---
+# data used 
+In this notebook, we are looking into the v12 histologies file (last updates on May 1st, 2023) and subset to the PBTA cohort.
+We use tumor_descriptor to summarize and filter disease_stages and generate "tumor_descriptor_sum", which wa sused for downstream analysis.
+
+# note
+The colors in the plots do not match the ones of the PBTA cohort yet. ---TO DO---
 
 
-# Load libraries
+
+## Load libraries
 ```{r setup, include=FALSE}
 attach(params) 
 library(tidyverse)
@@ -90,7 +99,7 @@ All tumor samples have matched normal samples.
 We need to filter normal samples out for further analysis. 
 We are using "pathology_diagnosis" instead of "sample_type". 
 This way we discard normal samples (as shown in "sample_type") in addition to undiagnosed tumor samples.
-From "composition" discard Derived Cell Line, PDX
+From "composition" discard Derived Cell Line, PDX.
 
 ```{r cohort PBTA, echo=TRUE}
 data1 <- as.data.frame(merge)
