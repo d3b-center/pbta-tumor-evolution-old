@@ -1,0 +1,297 @@
+---
+title: "Longitudinal project - PBTA Cohort - Copy data file from: /Users/chronia/CHOP/projects/OpenPedCan/OpenPedCan-analysis/data/v12/histologies.csv May 1st, 2023"
+author: 'User ID: `r Sys.getenv("USER")`'
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    fig_height: 7
+    fig_width: 9
+    keep_md: yes
+    toc: yes
+    df_print: paged
+params:
+  out_path: "/Users/chronia/CHOP/projects/Longitudinal/Analysis/data/plots/"
+  data_path: "/Users/chronia/CHOP/projects/Longitudinal/Analysis/data/data_raw/histologies copy.csv" # path to dir with v12
+  data_path_cols: "/Users/chronia/CHOP/projects/Longitudinal/Analysis/data/data_raw/PBTA-germline-histology-groups - plot_mapping.csv"
+  sample_name: "PBTA"
+  subsample: TRUE
+---
+
+Longitudinal Project For PBTA Cohort
+
+In this notebook, we will explore how many histologies, how many samples per histology have matched DNA/RNA, how many have 2, 3, 4, samples for the PBTA Cohort, what patients and diagnoses have how many longitudinal samples and are they all paired RNA/DNA or do we have gaps and provide a summary and a table of each set of samples by patient.
+
+Note the colors in the plots do not match the ones of the PBTA cohort yet. ---TO DO---
+
+
+# Load libraries
+```{r setup, include=FALSE}
+attach(params) 
+library(tidyverse)
+library(writexl)
+library(ggplot2)
+library(magrittr) # needs to be run every time you start R and want to use %>%
+library(ggthemes)
+library(scales) # For pretty breaks
+library(ggpubr)
+library(broom)
+library(viridis)
+library(hrbrthemes)
+library(stringi)
+library(ggpubr)
+library(rstatix)
+library(dplyr)
+library(RColorBrewer)
+suppressPackageStartupMessages(library(purrr))
+suppressPackageStartupMessages(library(furrr))
+
+library(reshape2) 
+library(reshape) 
+library(flextable)
+
+knitr::opts_chunk$set(echo = TRUE, 
+                      warning = FALSE, 
+                      message = FALSE, 
+                      fig.path = file.path(out_path),
+                       dev = c("png", "pdf"))
+
+# enable parallelization
+#plan("multiprocess", workers = 4) # 10 cpus
+plan("multisession", workers = 4) # 10 cpus
+options(future.globals.maxSize = 59600 * 1024^3) # for 64 Gb RAM, 119200 * 1024^3 for 128GB
+
+# set out_path and create dir 
+out_path <- paste0(out_path, "Plots-", sample_name, "/")
+if (!dir.exists(out_path)) {dir.create(out_path)}
+
+# shuffle function:
+shuf <- function(df){
+  return(df[sample(1:dim(df)[1], dim(df)[1]),])
+}
+
+```
+
+## Load data
+```{r }
+v12 <- read.csv(data_path, stringsAsFactor=FALSE)
+# dim(data)
+data_path_cols <- read.csv(data_path_cols, stringsAsFactor=FALSE) # Load plotting colors
+merge <- merge(v12,data_path_cols,by=c('cancer_group','broad_histology'),all.x=T) #to merge tables
+
+# to discard when add the col palette for PBTA cohort
+mypalette <- brewer.pal(12,"Paired") # colorblindFriendly = TRUE
+col5 <- colorRampPalette(mypalette)(5)
+col8 <- colorRampPalette(mypalette)(8)
+
+```
+
+All tumor samples have matched normal samples. 
+We need to filter normal samples out for further analysis. 
+We are using "pathology_diagnosis" instead of "sample_type". 
+This way we discard normal samples (as shown in "sample_type") in addition to undiagnosed tumor samples.
+From "composition" discard Derived Cell Line, PDX
+
+```{r cohort PBTA, echo=TRUE}
+data1 <- as.data.frame(merge)
+data <- data1  %>%
+   filter(cohort == "PBTA",
+          !is.na(pathology_diagnosis),
+          !composition %in% c("Derived Cell Line", "PDX"),
+          !is.na(cancer_group)) # Discard NAs in cancer type  
+
+data %>% count(tumor_descriptor)
+#data <- data1 %>% 
+#            filter(cohort == "PBTA",
+#                   !is.na(pathology_diagnosis),
+#                   !composition %in% c("Derived Cell Line", "PDX"),
+#                   !is.na(cancer_group)) %>% # Discard NAs in cancer type
+#            count(tumor_descriptor)
+
+# Select rows with NA values in cancer_group
+# df <- data[is.na(data$cancer_group), ]
+# df %>% count(cancer_group)
+# df %>% count(tumor_descriptor)
+
+# Save data after filter 
+write.csv(data, paste0(out_path, "data_by_cohort_", "PBTA", "_filter.csv"))
+
+# Replicate tumor_descriptor column and rename to tumor_descriptor_sum. This will summarize some longitudinal info.
+# data %>% count(tumor_descriptor)
+
+data$tumor_descriptor_sum <- data$tumor_descriptor
+data$tumor_descriptor_sum <- ifelse(data$tumor_descriptor_sum=="Progressive Disease Post-Mortem", "Deceased",
+                                 ifelse(data$tumor_descriptor_sum=="Initial CNS Tumor", "Diagnosis",
+                                 ifelse(data$tumor_descriptor_sum=="Primary Tumor", "Diagnosis", data$tumor_descriptor_sum)))
+data <- data %>% filter(tumor_descriptor_sum %in% c("Diagnosis", "Progressive", "Recurrence", "Deceased")) 
+
+data %>% count(tumor_descriptor_sum)
+
+# Save data after filter 
+write.csv(data, paste0(out_path, "data_by_cohort_", "PBTA", "_filter_logitudinal.csv"))
+
+data %>% count(cancer_group)
+data %>% count(tumor_descriptor)
+data %>% count(tumor_descriptor_sum)
+data %>% count(composition)
+data %>% count(pathology_diagnosis)
+
+count1 <- data %>% 
+          group_by(sample_id, cohort_participant_id, Kids_First_Participant_ID,
+                 experimental_strategy, sample_type, tumor_descriptor, tumor_descriptor_sum, primary_site,
+                 age_at_diagnosis_days, age_last_update_days, age_at_chemo_start, age_at_radiation_start,
+                 pathology_diagnosis, cancer_group, broad_histology) %>% 
+          dplyr::count(cancer_group) 
+
+write.csv(count1, paste0(out_path, "data_by_cohort_", "PBTA", "_filter_logitudinal_count.csv"))
+
+```
+
+
+## All assays
+
+```{r plot1}
+count1$experimental_strategy <- factor(x = count1$experimental_strategy, levels = c("WGS", "WXS", "RNA-Seq", "Targeted Sequencing", "Methylation"))
+
+p <- ggplot(count1, aes(x=cancer_group, fill=experimental_strategy))+
+        geom_bar()+
+        scale_fill_manual(values=col5) +
+        theme_classic()+
+        ylab("Count cancer_group") +
+        ggtitle("cancer_group vs experimental_strategy") +
+        guides(color=guide_legend(override.aes=list(size=3))) +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+        print(p)
+ggsave(paste0("Barplot_cancer_group_experimental_strategy_", "PBTA", ".pdf"), plot=p, path=out_path, device="pdf", height=7, width=10)
+
+```
+
+## Paired genomic, transcriptomic assays
+
+```{r plot2}
+count <- count1 %>% filter(experimental_strategy %in% c("WGS", "WXS", "RNA-Seq", "Targeted Sequencing")) # Not included:Methylation
+count$experimental_strategy <- factor(x = count$experimental_strategy, levels = c("WGS", "WXS", "RNA-Seq", "Targeted Sequencing"))
+
+p <- ggplot(count, aes(x=cancer_group, fill=experimental_strategy))+
+        geom_bar()+
+        scale_fill_manual(values=col5) + #scale_fill_manual(values=c(data$plot_group_hex)) 
+        theme_classic()+
+        ylab("Count cancer_group") +
+        ggtitle("cancer_group vs experimental_strategy") +
+        guides(color=guide_legend(override.aes=list(size=3))) +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+        print(p)
+ggsave(paste0("Barplot_cancer_group_experimental_strategy_matched_DNA-RNA_", "PBTA", ".pdf"), plot=p, path=out_path, device="pdf", height=7, width=10)
+```
+
+## By cancer_group - all disease stages
+
+
+```{r plot3}
+count$tumor_descriptor_sum <- factor(x = count$tumor_descriptor_sum, levels = c("Diagnosis", "Progressive", "Recurrence", "Deceased"))
+
+p <- ggplot(count, aes(x=cancer_group, fill=tumor_descriptor_sum))+
+        geom_bar()+
+        scale_fill_manual(values=col5) +
+        theme_classic()+
+        ylab("Count cancer_group") +
+        ggtitle("cancer_group vs tumor_descriptor_sum") +
+        guides(color=guide_legend(override.aes=list(size=3))) +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+        print(p)
+ggsave(paste0("Barplot_cancer_group_tumor_descriptor_sum_matched_DNA-RNA_", "PBTA", ".pdf"), plot=p, path=out_path, device="pdf", height=7, width=10)
+
+```
+
+In the following section, we will provide summary table across different disease stages, histologies, and patients samples.
+
+### Number of tumor samples per each assay
+
+First, we’ll examine how many of each type of assay we have (tumors only). This information is stored in the experimental_strategy column.
+
+```{r}
+count1 %>%
+  group_by(experimental_strategy) %>%
+  tally() %>%
+  arrange(desc(n)) %>% 
+  regulartable() %>%
+  fontsize(size = 12, part = "all")
+
+```
+
+
+
+### Paired genomic, transcriptomic assays
+
+## Multiple time points: Diagnosis, Progressive, Recurrence, Deceased
+We're going to use the `tumor_descriptor_sum` column here with matched genomic and transcriptomic assays from before.
+
+## By cancer_group 
+# Disease stage - descriptors pairs
+
+How many tumor samples per cancer_group and disease_stage?
+
+```{r}
+disease_stage_cancer_group <- count %>%
+  group_by(Kids_First_Participant_ID) %>%
+  summarize(disease_stage = paste(sort(unique(tumor_descriptor_sum)),
+                                  collapse = ", "),
+            cancer_group = paste(sort(unique(cancer_group)),
+                                collapse = ", ")) %>%
+  group_by(disease_stage, cancer_group) %>%
+  tally() %>%
+  arrange(desc(n))
+
+disease_stage_cancer_group %>% 
+  regulartable() %>%
+  fontsize(size = 12, part = "all")
+
+```
+
+
+What about when Diagnosis is present and paired with another point in time?
+
+```{r}
+Diagnosis_paired <- disease_stage_cancer_group  %>%
+  filter(disease_stage != "Diagnosis")  %>% 
+  filter(grepl("Diagnosis", disease_stage)) %>%
+  regulartable() %>%
+  fontsize(size = 12, part = "all")
+Diagnosis_paired
+```
+
+
+
+## By Kids_First_Participant_ID
+### Disease stage - descriptors pairs
+
+How many tumor samples per disease_stage?
+
+```{r}
+disease_stage <- count %>%
+  group_by(Kids_First_Participant_ID) %>%
+  summarize(disease_stage = paste(sort(unique(tumor_descriptor_sum)),
+                                  collapse = ", "),
+                                collapse = ", ") %>%
+  group_by(disease_stage) %>%
+  tally() %>%
+  arrange(desc(n))
+
+disease_stage  %>% 
+  regulartable() %>%
+  fontsize(size = 12, part = "all")
+
+```
+
+
+What about when Diagnosis is present and paired with another point in time?
+
+```{r}
+Diagnosis_paired <- disease_stage  %>%
+  filter(disease_stage != "Diagnosis")  %>% 
+  filter(grepl("Diagnosis", disease_stage)) %>%
+  regulartable() %>%
+  fontsize(size = 12, part = "all")
+Diagnosis_paired
+```
+
+
