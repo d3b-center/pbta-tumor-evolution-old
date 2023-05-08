@@ -161,7 +161,7 @@ p <- ggplot(count1, aes(x=cancer_group, fill=experimental_strategy))+
         guides(color=guide_legend(override.aes=list(size=3))) +
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
         print(p)
-ggsave(paste0("Barplot_cancer_group_experimental_strategy_", "PBTA", ".pdf"), plot=p, path=out_path_plots, device="pdf", height=7, width=10)
+ggsave("Barplot_cancer_group_experimental_strategy_PBTA.pdf", plot=p, path=out_path_plots, device="pdf", height=7, width=10)
 
 ```
 
