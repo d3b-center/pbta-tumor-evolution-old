@@ -111,20 +111,9 @@ data <- data1  %>%
 )
 
 data %>% count(tumor_descriptor)
-#data <- data1 %>% 
-#            filter(cohort == "PBTA",
-#                   !is.na(pathology_diagnosis),
-#                   !composition %in% c("Derived Cell Line", "PDX"),
-#                   !is.na(cancer_group)) %>% # Discard NAs in cancer type
-#            count(tumor_descriptor)
-
-# Select rows with NA values in cancer_group
-# df <- data[is.na(data$cancer_group), ]
-# df %>% count(cancer_group)
-# df %>% count(tumor_descriptor)
 
 # Save data after filter 
-write.csv(data, paste0(out_path_results, "data_by_cohort_", "PBTA", "_filter.csv"))
+write_csv(data, file.path(out_path_results, out_file))
 
 # Replicate tumor_descriptor column and rename to tumor_descriptor_sum. This will summarize some longitudinal info.
 # data %>% count(tumor_descriptor)
