@@ -86,7 +86,9 @@ shuf <- function(df){
 v12 <- readr::read_tsv(data_path)
 # dim(data)
 data_path_cols <- read.csv(data_path_cols, stringsAsFactor=FALSE) # Load plotting colors
-merge <- merge(v12,data_path_cols,by=c('cancer_group','broad_histology'),all.x=T) #to merge tables
+# Add colors palette to the histologies file
+hist_cols <- v12 %>%
+left_join(cols, by=c('cancer_group','broad_histology')
 
 # to discard when add the col palette for PBTA cohort
 mypalette <- brewer.pal(12,"Paired") # colorblindFriendly = TRUE
