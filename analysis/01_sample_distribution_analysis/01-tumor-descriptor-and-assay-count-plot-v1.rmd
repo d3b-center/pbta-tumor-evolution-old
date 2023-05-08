@@ -108,7 +108,7 @@ data <- data1  %>%
    filter(cohort == "PBTA",
           !is.na(pathology_diagnosis),
           !composition %in% c("Derived Cell Line", "PDX"),
-          !is.na(cancer_group)) # Discard NAs in cancer type  
+)
 
 data %>% count(tumor_descriptor)
 #data <- data1 %>% 
