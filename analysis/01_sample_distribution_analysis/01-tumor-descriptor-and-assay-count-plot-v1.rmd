@@ -104,7 +104,6 @@ This way we discard normal samples (as shown in "sample_type") in addition to un
 From "composition" discard Derived Cell Line, PDX.
 
 ```{r cohort PBTA, echo=TRUE}
-data1 <- as.data.frame(merge)
 data <- data1  %>%
    filter(cohort == "PBTA",
           !is.na(pathology_diagnosis),
